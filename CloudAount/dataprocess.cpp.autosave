@@ -1,0 +1,132 @@
+#include "dataprocess.h"
+#include<QFile>
+#include<QTextStream>
+#include<QtAlgorithms>
+#include"dailydispersedata.h"
+
+DataProcess::DataProcess(QVector<QStringList> monthsFiles,
+                         QString locatePath, QVector<VectorContent> baseCoord)
+{
+    this->monthsFiles = monthsFiles;
+    this->locatePath = locatePath;
+    this->baseCoord = baseCoord;
+}
+//对每个文件里的数据进行操作（快速排序、取出对应的纬度范围等）
+QVector<dailyData> DataProcess::readFile(QString filePath)
+{
+    QVector<dailyDisperseData> _dailyData;
+    QFile file(filePath);
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+    QTextStream in(&file);
+    while(!in.atEnd())
+    {
+        QString line=in.readLine();
+        //解析每读出来一行的路径
+        dailyDisperseData _data;
+        QStringList lineDataList = line.split(",");
+        QString y =lineDataList.at(0);
+        _data.CoordY = y.toDouble();
+        QString x = lineDataList.at(1);
+        _data.CoordX = x.toDouble();
+        QString c =lineDataList.at(2);
+        _data.CloudAmount = c.toDouble()/100;
+       // QVector<double,double,double> dailyData;
+        _dailyData.append(_data);
+    }
+    file.close();
+    qSort(_dailyData.begin(),_dailyData.end());
+    QVector<dailyData> preprocessData;
+    //把重复的CoordY合并
+    for(int i = 0;i < _dailyData.length();i++)
+    {
+        if(i == 0)
+        {
+            dailyData d;
+            d.YCoord =_dailyData.at(i).CoordY;
+            dailyDataSon s;
+            s.XCoord =_dailyData.at(i).CoordX;
+            s.CloudMount = _dailyData.at(i).CloudAmount;
+            d.son.append(s);
+            preprocessData.append(d);
+        }
+        else
+        {
+            int length = preprocessData.size()-1;
+            if(preprocessData.at(length).YCoord == _dailyData.at(i).CoordY)
+            {
+                dailyDataSon s;
+                s.XCoord =_dailyData.at(i).CoordX;
+                s.CloudMount = _dailyData.at(i).CloudAmount;
+                preprocessData.at(length).son.append(s);
+            }
+            else
+            {
+                dailyData d;
+                d.YCoord =_dailyData.at(i).CoordY;
+                dailyDataSon s;
+                s.XCoord =_dailyData.at(i).CoordX;
+                s.CloudMount = _dailyData.at(i).CloudAmount;
+                d.son.append(s);
+                preprocessData.append(d);
+            }
+        }
+    }
+    //对CoordX排序
+    for(int i=0; i<preprocessData.length();i++)
+    {
+        qSort(preprocessData.at(i).son.begin(),preprocessData.at(i).son.end());
+    }
+   // oneMonthData.append(preprocessData);
+    return preprocessData;
+}
+/*
+ *  QVector<QStringList> monthsFiles;//放置所读出来一年文件的路径
+    QString locatePath;//放置处理后文件的路径
+    QVector<VectorContent> baseCoord;//标准坐标的容器
+*/
+void DataProcess::process()
+{
+    for(int i=0;i<monthsFiles.length();i++)
+    {
+        QStringList monthFiles=monthsFiles.at(i);
+        foreach (QString str, monthFiles)
+        {
+            //想要实现的效果是：每读出一个文件就对经纬度进行对比，并计算每个月云量的平均值最后生成月均值的txt文件
+            QVector<dailyData> dailyVector = readFile(str);
+            comparingCoord(dailyVector);
+            
+        }
+    }
+}
+void DataProcess::comparingCoord(QVector<dailyData> data)
+{
+    int j = 0;
+    for(int i=0;i<data.length();i++)
+    {
+        for(j;(j < baseCoord.length()-1) && (data.at(i).YCoord > baseCoord.at(j).CoordY);j++)
+        {
+            if(data.at(i).YCoord > (baseCoord.at(j).CoordY + baseCoord.at(j+1).CoordY)/2)
+            {
+               //经度的比较
+                for(int m=0;m < data.at(i).son.length();m++)
+                {
+                    for(int n=0;(n < baseCoord.at(j+1).son.length()-1)&&
+                        (data.at(i).son.at(m).XCoord > baseCoord.at(j+1).son.at(n).CoordX);n++)
+                    {
+                        
+                    }
+                }
+            }
+            else if(data.at(i).YCoord > (baseCoord.at(j).CoordY + baseCoord.at(j+1)).CoordY/2)
+            {
+                
+            }
+            else
+            {
+                
+            }
+                 
+        }
+    }
+}
